@@ -65,10 +65,10 @@ load_variants <- function(vcf,reference,sample_name,file_type="vcf"){
 
 .get_variant_locs_cs <- function(variant_file, reference, sample_name){
   # load the data from the call_stats file
-  col_spec <- readr::cols_only(contig='c',position='i',ref_allele='c',alt_allele='c',judgement='c',tumor_f='d','t_lod_fstar'='d')
+  col_spec <- readr::cols_only(contig='c',position='i',ref_allele='c',alt_allele='c',judgement='c',tumor_f='d',t_ref_count='d',t_alt_count='d',t_lod_fstar='d')
   fr <- readr::read_tsv(variant_file,comment='#',col_types=col_spec) %>%dplyr::mutate(start=position,end=position) %>%
     dplyr::mutate(pass_all = judgement == "KEEP") %>%
-    dplyr::select("seqnames"=contig,position,"ref"=ref_allele,"alt"=alt_allele,'freq'=tumor_f,'TLOD'=t_lod_fstar, pass_all) %>%
+    dplyr::select("seqnames"=contig,position,"ref"=ref_allele,"alt"=alt_allele,'freq'=tumor_f,'TLOD'=t_lod_fstar, t_ref_count, t_alt_count, pass_all) %>%
     dplyr::filter(pass_all)
 
   # Generate VRanges object for SomaticSignatures
@@ -78,13 +78,17 @@ load_variants <- function(vcf,reference,sample_name,file_type="vcf"){
                                    alt = fr$alt,
                                    TLOD = fr$TLOD,
                                    freq = fr$freq,
+                                   refCount = fr$t_ref_count,
+                                   altCount = fr$t_alt_count,
                                    sampleNames = rep(sample_name,nrow(fr)),
                                    pass_all = fr$pass_all)
+  #VariantAnnotation::refDepth(vr) <- fr$t_ref_count
+  #VariantAnnotation::altDepth(vr) <- fr$t_alt_count
   GenomeInfoDb::seqlevels(vr) <- GenomicAlignments::seqlevelsInUse(vr)
   GenomeInfoDb::genome(vr) <- GenomeInfoDb::genome(reference)[1:length(GenomeInfoDb::genome(vr))]
   vr <- SomaticSignatures::mutationContext(vr,reference)
   mcols(vr)$TLOD <- as.numeric(mcols(vr)$TLOD)
   vars <- tibble::as_tibble(vr)
-  vars <- vars %>%  dplyr::select(seqnames, start, end, freq, alteration, context)
+  vars <- vars %>%  dplyr::select(seqnames, start, end, freq, alteration, context, refCount, altCount)
   vars
 }
