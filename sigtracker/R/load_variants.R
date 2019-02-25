@@ -59,6 +59,32 @@ load_variants <- function(vcf,reference,sample_name,file_type="vcf"){
   mcols(vr)$SA_POST_PROB <- ""
   vars <- tibble::as_tibble(vr)
   vars <- vars %>% dplyr::mutate(cref=stringr::str_sub(alteration,1L,1L),
+                                 calt=stringr::str_sub(alteration,2L,2L))
+  vars
+}
+
+.get_variant_locs_cs <- function(variant_file, reference, sample_name){
+  # load the data from the call_stats file
+  col_spec <- readr::cols_only(contig='c',position='i',ref_allele='c',alt_allele='c',judgement='c',tumor_f='d','t_lod_fstar'='d')
+  fr <- readr::read_tsv(variant_file,comment='#',col_types=col_spec) %>%dplyr::mutate(start=position,end=position) %>%
+    dplyr::mutate(pass_all = judgement == "KEEP") %>% # Hacky. fstar_tumor_lod appears to always appear with possible_contamination, and low_mapq. Have to work on.
+    dplyr::select("seqnames"=contig,position,"ref"=ref_allele,"alt"=alt_allele,'freq'=tumor_f,'TLOD'=t_lod_fstar, pass_all)
+
+  # Generate VRanges object for SomaticSignatures
+  vr <- VariantAnnotation::VRanges(seqnames = fr$seqnames,
+                                   ranges = IRanges(start = fr$position, width = rep(1,nrow(fr))),
+                                   ref = fr$ref,
+                                   alt = fr$alt,
+                                   TLOD = fr$TLOD,
+                                   freq = fr$freq,
+                                   sampleNames = rep(sample_name,nrow(fr)),
+                                   pass_all = fr$pass_all)
+  GenomeInfoDb::seqlevels(vr) <- GenomicAlignments::seqlevelsInUse(vr)
+  GenomeInfoDb::genome(vr) <- GenomeInfoDb::genome(reference)[1:length(GenomeInfoDb::genome(vr))]
+  vr <- SomaticSignatures::mutationContext(vr,reference)
+  mcols(vr)$TLOD <- as.numeric(mcols(vr)$TLOD)
+  vars <- tibble::as_tibble(vr)
+  vars <- vars %>% dplyr::mutate(cref=stringr::str_sub(alteration,1L,1L),
                                  calt=stringr::str_sub(alteration,2L,2L),
                                  mutect_odds=10**(TLOD - 6.0))
   vars
