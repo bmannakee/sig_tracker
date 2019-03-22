@@ -60,6 +60,7 @@ load_variants <- function(vcf,reference,sample_name,file_type="vcf"){
   vars <- tibble::as_tibble(vr)
   vars <- vars %>% dplyr::mutate(cref=stringr::str_sub(alteration,1L,1L),
                                  calt=stringr::str_sub(alteration,2L,2L))
+  vars$trinucleotide_context <- paste0(vars$alteration,"_",vars$context)
   vars
 }
 
@@ -90,5 +91,6 @@ load_variants <- function(vcf,reference,sample_name,file_type="vcf"){
   mcols(vr)$TLOD <- as.numeric(mcols(vr)$TLOD)
   vars <- tibble::as_tibble(vr)
   vars <- vars %>%  dplyr::select(seqnames, start, end, freq, alteration, context, refCount, altCount)
+  vars$trinucleotide_context <- paste0(vars$alteration,"_",vars$context)
   vars
 }
