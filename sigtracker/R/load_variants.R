@@ -22,8 +22,11 @@ load_variants <- function(vcf,reference,sample_name,file_type="vcf"){
   if (file_type == "vcf"){
     .load_and_filter_vcf(vcf,reference,sample_name)
   }
-  else {
+  else if (file_type == "cs") {
     .get_variant_locs_cs(vcf,reference,sample_name)
+  }
+  else {
+    .get_variant_locs_bed(vcf,reference,sample_name)
   }
 }
 
@@ -90,6 +93,29 @@ load_variants <- function(vcf,reference,sample_name,file_type="vcf"){
   vr <- SomaticSignatures::mutationContext(vr,reference)
   mcols(vr)$TLOD <- as.numeric(mcols(vr)$TLOD)
   vars <- tibble::as_tibble(vr)
+  vars <- vars %>%  dplyr::select(seqnames, start, end, freq, alteration, context, refCount, altCount)
+  vars$trinucleotide_context <- paste0(vars$alteration,"_",vars$context)
+  vars
+}
+
+.get_variant_locs_bed <- function(variant_file, reference, sample_name){
+  col_spec <- readr::cols('c','i','i','d','c','c')
+  col_names <- c("seqnames","start","end","vaf","ref","alt")
+  fr <- readr::read_tsv(test_file,col_types = col_spec, col_names = col_names)
+
+  vr <- VariantAnnotation::VRanges(seqnames = fr$seqnames,
+                                   ranges = IRanges(start = fr$start, width = rep(1,nrow(fr))),
+                                   ref = fr$ref,
+                                   alt = fr$alt,
+                                   freq = fr$vaf,
+                                   sampleNames = rep(sample_name,nrow(fr)))
+  GenomeInfoDb::seqlevels(vr) <- GenomicAlignments::seqlevelsInUse(vr)
+  GenomeInfoDb::genome(vr) <- GenomeInfoDb::genome(reference)[1:length(GenomeInfoDb::genome(vr))]
+  vr <- SomaticSignatures::mutationContext(vr,reference)
+  vars <- tibble::as_tibble(vr)
+  # Need to fudge up some alt and ref counts for the rbeta algorithm
+  vars <- vars %>% dplyr::mutate(refCount = freq*100,
+                                 altCount = 100-(freq*100))
   vars <- vars %>%  dplyr::select(seqnames, start, end, freq, alteration, context, refCount, altCount)
   vars$trinucleotide_context <- paste0(vars$alteration,"_",vars$context)
   vars
