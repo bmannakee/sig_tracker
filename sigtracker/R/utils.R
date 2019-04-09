@@ -64,8 +64,8 @@ em_alg <- function(our_fr){
     pi_new <- pi_fr[1,] %>% as.double
   }
   # Get the top five weighted signatures and redo
-  top_5_index <- order(-pi_new)[1:5]
-  pi_current <- rep(1/5,5)
+  top_5_index <- order(-pi_new)[1:10]
+  pi_current <- rep(1/10,10)
 
   names(pi_current) <- paste0("signature_",top_5_index)
 
