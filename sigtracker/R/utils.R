@@ -44,7 +44,7 @@ get_one_hot <- function(df){
 }
 
 em_alg <- function(our_fr){
-  sig_fr <- get_signature_fr('~/Desktop/projects/sig_tracker/sigtracker/cosmic_signatures.txt')
+  sig_fr <- get_signature_fr('~/Desktop/projects/sig_tracker/sigtracker/cosmic_signatures.txt') # TERRIBLE. FIX This immediately!!!!!!!
   eps <- .00001 # converges at abs(sum(pi_current - pi_new)) <= eps
   pi_current <- rep(1/30,30) # vector of mixing coefficients
   names(pi_current) <- paste0("signature_",1:30)
@@ -54,7 +54,7 @@ em_alg <- function(our_fr){
   this_fr <- this_fr %>% dplyr::mutate(pi_cur = list(pi_current))
   this_fr <- this_fr %>% dplyr::mutate(zi = purrr::map2(pi_cur,this_sig, ~ unlist(.x)*unlist(.y))) # zi carries an expectation step
   pi_fr <- as_tibble(Reduce(rbind,this_fr$zi))
-  pi_new <- pi_fr %>% summarise_all(mean)
+  pi_new <- pi_fr %>% summarise_all(mean) # maximization
   while(abs(sum(pi_current - pi_new)) > eps){
     pi_current <- pi_new
     this_fr <- this_fr %>% dplyr::mutate(pi_cur = list(pi_current))
@@ -64,8 +64,8 @@ em_alg <- function(our_fr){
     pi_new <- pi_fr[1,] %>% as.double
   }
   # Get the top five weighted signatures and redo
-  top_5_index <- order(-pi_new)[1:5]
-  pi_current <- rep(1/5,5)
+  top_5_index <- order(-pi_new)[1:10]
+  pi_current <- rep(1/10,10)
 
   names(pi_current) <- paste0("signature_",top_5_index)
 
@@ -80,7 +80,7 @@ em_alg <- function(our_fr){
 
   pi_fr <- as_tibble(Reduce(rbind,this_fr$zi))
 
-  pi_new <- pi_fr %>% summarise_all(mean)
+  pi_new <- pi_fr %>% summarise_all(mean) # maximization
 
   while(abs(sum(pi_current - pi_new)) > eps){
     pi_current <- pi_new
