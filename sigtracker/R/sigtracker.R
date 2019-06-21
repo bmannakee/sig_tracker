@@ -4,7 +4,7 @@
 #' reference needs to be a FAFile object
 #' vr <- smartcallr::compute_odds('./data/non_pdx/vcfs/AZ1013T1.vcf',reference=BSgenome.Hsapiens.1000genomes.hs37d5)
 
-run_tracksig <- function(vcf,reference, bin_size = 100, sample_name='TUMOR', file_type = "vcf"){
+run_tracksig <- function(vcf,reference, bin_size = 100, sample_name='TUMOR', file_type = "vcf",use_sigs=NULL){
   if (!file.exists(vcf)){
     stop('The VCF path is not valid.')
   }
@@ -18,12 +18,12 @@ run_tracksig <- function(vcf,reference, bin_size = 100, sample_name='TUMOR', fil
   with_times <- order_time(with_vars, bin_size)
   with_proportions <- get_proportions(with_times)
   with_one_hot <- get_one_hot(with_times)
-  sig_props <- with_times %>% dplyr::group_by(time) %>% tidyr::nest() %>% dplyr::mutate(pi = purrr::map(data, ~ em_alg(.x)))
+  sig_props <- with_times %>% dplyr::group_by(time) %>% tidyr::nest() %>% dplyr::mutate(pi = purrr::map(data, ~ em_alg(.x,use_sigs)))
   # returns a list with the original data, the time points, and top five estimates with their signature names
   pis <- do.call(rbind,sig_props$pi)
   final <-  pis %>% as_tibble() %>% dplyr::mutate(time=sig_props$time) %>%
     unnest() %>%
-    pivot_wider(key = time,
+    pivot_wider(id_cols = time,
                 names_from = sigs,
                 values_from = pi,
                 values_fill = list(pi=0))

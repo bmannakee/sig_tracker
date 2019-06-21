@@ -43,13 +43,23 @@ get_one_hot <- function(df){
   return(one_hot_encoding)
 }
 
-em_alg <- function(our_fr){
-  sig_fr <- get_signature_fr('~/Desktop/projects/sig_tracker/sigtracker/cosmic_signatures.txt') # TERRIBLE. FIX This immediately!!!!!!!
+em_alg <- function(our_fr,use_sigs=NULL){
+  if (is.null(use_sigs)){
+    sig_fr <- get_signature_fr('~/Desktop/projects/sig_tracker/sigtracker/cosmic_signatures.txt') # TERRIBLE. FIX This immediately!!!!!!!
+    pi_current <- rep(1/30,30) # vector of mixing coefficients
+    names(pi_current) <- paste0("signature_",1:30)
+  }
+  else {
+    sig_fr <- get_signature_fr('~/Desktop/projects/sig_tracker/sigtracker/cosmic_signatures.txt') %>%
+      dplyr::select(trinucleotide_context,paste0("signature_",use_sigs)) # TERRIBLE. FIX This immediately!!!!!!!
+    pi_current <- rep(1/length(use_sigs),length(use_sigs)) # vector of mixing coefficients
+    names(pi_current) <- paste0("signature_",use_sigs)
+
+  }
   eps <- .00001 # converges at abs(sum(pi_current - pi_new)) <= eps
-  pi_current <- rep(1/30,30) # vector of mixing coefficients
-  names(pi_current) <- paste0("signature_",1:30)
+
   sigs_split <- sig_fr %>% split(.$trinucleotide_context) %>%
-    map(~ select(.,contains("signature_")))
+    map(~ dplyr::select(.,contains("signature_")))
   this_fr <- our_fr %>% dplyr::mutate(this_sig = map(trinucleotide_context, ~ as.double(sigs_split[[.x]])))
   this_fr <- this_fr %>% dplyr::mutate(pi_cur = list(pi_current))
   this_fr <- this_fr %>% dplyr::mutate(zi = purrr::map2(pi_cur,this_sig, ~ unlist(.x)*unlist(.y))) # zi carries an expectation step
@@ -64,8 +74,13 @@ em_alg <- function(our_fr){
     pi_new <- pi_fr[1,] %>% as.double
   }
   # Get the top five weighted signatures and redo
-  top_5_index <- order(-pi_new)[1:10]
-  pi_current <- rep(1/10,10)
+  if (is.null(use_sigs)) {
+    top_5_index <- order(-pi_new)[1:10]
+    pi_current <- rep(1/10,10)
+  }
+  else {
+    return(list(pi=pi_new/sum(pi_new), sigs=paste0('signature_',use_sigs)))
+  }
 
   names(pi_current) <- paste0("signature_",top_5_index)
 
